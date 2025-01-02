@@ -5,11 +5,13 @@ use futures::{FutureExt, future::BoxFuture};
 use rocket::{
     Build, Data, Request, Rocket, error,
     fairing::{self, Fairing, Info, Kind},
-    http::{ContentType, Status},
+    http::ContentType,
     request::FromRequest,
     response::{self, Responder},
     serde::Serialize,
 };
+
+use crate::errors::ToStatusErr;
 
 trait Handler: Send + Sync {
     fn handle<'r>(
@@ -120,25 +122,22 @@ impl<'r> Responder<'r, 'static> for Template {
     fn respond_to(self, req: &'r Request<'_>) -> response::Result<'static> {
         let context: &ArcSwapOption<tera::Context> = req.local_cache(ArcSwapOption::empty);
 
-        let tera = req
-            .rocket()
-            .state::<tera::Tera>()
-            .ok_or(Status::InternalServerError)?;
+        let tera = req.rocket().state::<tera::Tera>().status_err(500)?;
 
         let mut context = context
             .swap(None)
             .and_then(|c| Arc::try_unwrap(c).ok())
-            .ok_or(Status::InternalServerError)?;
+            .status_err(500)?;
 
-        self.context.map(|c| context.extend(c)).map_err(|e| {
-            error!("{e}");
-            Status::InternalServerError
-        })?;
+        self.context
+            .map(|c| context.extend(c))
+            .inspect_err(|e| error!("{e}"))
+            .status_err(500)?;
 
-        let rendered = tera.render(&self.path, &context).map_err(|e| {
-            error!("{e}");
-            Status::InternalServerError
-        })?;
+        let rendered = tera
+            .render(&self.path, &context)
+            .inspect_err(|e| error!("{e}"))
+            .status_err(500)?;
 
         (ContentType::HTML, rendered).respond_to(&req)
     }
