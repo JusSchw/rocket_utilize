@@ -4,7 +4,7 @@ use rocket_utilize::{
     template::{Template, TemplateConfig},
 };
 
-#[derive(Default, Serialize)]
+#[derive(Serialize)]
 struct User {
     name: String,
     role: String,
@@ -29,7 +29,8 @@ fn index() -> Template {
 
 #[launch]
 fn rocket() -> _ {
-    let config = TemplateConfig::new("templates/**/*.html").register::<User>("user");
+    let config =
+        TemplateConfig::new("templates/**/*.html").register("user", Option::<User>::default);
 
     rocket::build().attach(config).mount("/", routes![index])
 }

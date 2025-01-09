@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, sync::Arc};
+use std::sync::Arc;
 
 use arc_swap::ArcSwapOption;
 use futures::{FutureExt, future::BoxFuture};
@@ -15,38 +15,27 @@ use crate::errors::ToStatusErr;
 
 trait Handler: Send + Sync {
     fn handle<'r>(
-        &self,
+        &'r self,
         req: &'r Request<'_>,
         context: &'r mut tera::Context,
         name: String,
     ) -> BoxFuture<'r, ()>;
 }
 
-struct Phantom<T> {
-    _marker: PhantomData<T>,
-}
-
-impl<T> Phantom<T> {
-    fn new() -> Self {
-        Phantom {
-            _marker: PhantomData,
-        }
-    }
-}
-
-impl<T> Handler for Phantom<T>
+impl<F, T> Handler for F
 where
-    T: for<'r> FromRequest<'r> + Default + Serialize + Send + Sync,
+    F: Fn() -> T + Send + Sync,
+    T: for<'r> FromRequest<'r> + Serialize + Send + Sync,
 {
     fn handle<'r>(
-        &self,
+        &'r self,
         req: &'r Request<'_>,
         context: &'r mut tera::Context,
         name: String,
     ) -> BoxFuture<'r, ()> {
         async move {
             let guard = (req.guard::<T>().await)
-                .success_or_else(T::default)
+                .success_or_else(self)
                 .unwrap_or_else(|e| e);
 
             context.insert(name, &guard);
@@ -67,12 +56,13 @@ impl TemplateConfig {
         }
     }
 
-    pub fn register<T>(mut self, name: impl AsRef<str>) -> Self
+    pub fn register<F, T>(mut self, name: impl AsRef<str>, fallback: F) -> Self
     where
-        T: for<'r> FromRequest<'r> + Default + Serialize + Send + Sync + 'static,
+        F: Fn() -> T + Send + Sync + 'static,
+        T: for<'r> FromRequest<'r> + Serialize + Send + Sync,
     {
         self.registry
-            .push((Box::new(Phantom::<T>::new()), name.as_ref().into()));
+            .push((Box::new(fallback), name.as_ref().into()));
         self
     }
 }
