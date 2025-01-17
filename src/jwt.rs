@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use cookie::{CookieBuilder, time::OffsetDateTime};
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use rocket::http::Cookie;
@@ -19,9 +19,9 @@ where
         Self { exp: None, claims }
     }
 
-    pub fn new_with_expr(claims: T, exp: DateTime<Utc>) -> Self {
+    pub fn new_with_exp(claims: T, duration: Duration) -> Self {
         Self {
-            exp: Some(exp),
+            exp: Some(Utc::now() + duration),
             claims,
         }
     }
