@@ -5,7 +5,7 @@ use rocket::http::Cookie;
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, convert::TryFrom, env};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Jwt<T> {
     pub exp: Option<DateTime<Utc>>,
     pub claims: T,
