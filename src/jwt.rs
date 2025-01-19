@@ -16,7 +16,10 @@ where
     T: Serialize + for<'de> Deserialize<'de>,
 {
     pub fn new(claims: T) -> Self {
-        Self { exp: 0, claims }
+        Self {
+            exp: i64::MAX,
+            claims,
+        }
     }
 
     pub fn new_with_exp(claims: T, duration: Duration) -> Self {
@@ -25,7 +28,7 @@ where
     }
 
     pub fn is_expired(&self) -> bool {
-        self.exp != 0 && Utc::now().timestamp() > self.exp
+        Utc::now().timestamp() > self.exp
     }
 
     pub fn validate(token: &str) -> anyhow::Result<Self> {
@@ -54,7 +57,7 @@ where
     ) -> anyhow::Result<CookieBuilder<'c>> {
         let mut builder = CookieBuilder::new(name, self.sign()?);
 
-        if client_exp && self.exp != 0 {
+        if client_exp {
             builder = builder.expires(OffsetDateTime::from_unix_timestamp(self.exp)?);
         }
         Ok(builder)
