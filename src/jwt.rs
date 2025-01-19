@@ -76,6 +76,6 @@ where
 {
     type Error = anyhow::Error;
     fn try_from(value: Cookie<'_>) -> Result<Self, Self::Error> {
-        Self::validate(value.value())
+        Self::validate(value.value_trimmed())
     }
 }
