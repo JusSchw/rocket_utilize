@@ -70,12 +70,12 @@ where
     }
 }
 
-impl<'a, T> TryFrom<Cookie<'a>> for Jwt<T>
+impl<T> TryFrom<Cookie<'_>> for Jwt<T>
 where
     T: Serialize + for<'de> Deserialize<'de>,
 {
     type Error = anyhow::Error;
-    fn try_from(value: Cookie<'a>) -> Result<Self, Self::Error> {
+    fn try_from(value: Cookie<'_>) -> Result<Self, Self::Error> {
         Self::validate(value.value())
     }
 }
