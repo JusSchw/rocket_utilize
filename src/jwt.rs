@@ -17,7 +17,7 @@ where
 {
     pub fn new(claims: T) -> Self {
         Self {
-            exp: i64::MAX,
+            exp: 4856112000,
             claims,
         }
     }
