@@ -62,22 +62,23 @@ impl<T> ToJsonError<T> for Option<T> {
 }
 
 pub trait ToJsonErrorMapped<T, E> {
-    fn json_err_map<S: Serialize, F: FnOnce(E) -> S>(
+    fn json_err_map<S: Serialize, F: FnOnce(E) -> (S, Status)>(
         self,
         f: F,
-        status: impl Into<Option<Status>>,
     ) -> Result<T, ResultValue>;
 }
 
 impl<T, E> ToJsonErrorMapped<T, E> for Result<T, E> {
-    fn json_err_map<S: Serialize, F: FnOnce(E) -> S>(
+    fn json_err_map<S: Serialize, F: FnOnce(E) -> (S, Status)>(
         self,
         f: F,
-        status: impl Into<Option<Status>>,
     ) -> Result<T, ResultValue> {
         match self {
             Ok(t) => Ok(t),
-            Err(err) => Err(ResultJson::Failure((f)(err), status).unwrap_err()),
+            Err(err) => {
+                let err = (f)(err);
+                Err(ResultJson::Failure(err.0, err.1).unwrap_err())
+            }
         }
     }
 }
