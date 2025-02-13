@@ -1,9 +1,25 @@
 use chrono::{Duration, Utc};
 use cookie::{CookieBuilder, time::OffsetDateTime};
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
+use once_cell::sync::OnceCell;
 use rocket::http::Cookie;
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, convert::TryFrom, env};
+use std::{borrow::Cow, convert::TryFrom};
+
+#[derive(Default)]
+pub struct JWTConfig {
+    secret: String,
+}
+
+impl JWTConfig {
+    pub fn set_static<'a>(secret: impl Into<Cow<'a, str>>) {
+        JWTCONFIG.get_or_init(|| Self {
+            secret: secret.into().to_string(),
+        });
+    }
+}
+
+const JWTCONFIG: OnceCell<JWTConfig> = OnceCell::new();
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Jwt<T> {
@@ -32,7 +48,8 @@ where
     }
 
     pub fn validate(token: &str) -> anyhow::Result<Self> {
-        let secret = env::var("JWT_SECRET")?;
+        let binding = JWTCONFIG;
+        let secret = &binding.get_or_init(|| JWTConfig::default()).secret;
         let data = decode::<Self>(
             token,
             &DecodingKey::from_secret(secret.as_bytes()),
@@ -42,7 +59,8 @@ where
     }
 
     pub fn sign(&self) -> anyhow::Result<String> {
-        let secret = env::var("JWT_SECRET")?;
+        let binding = JWTCONFIG;
+        let secret = &binding.get_or_init(|| JWTConfig::default()).secret;
         Ok(encode(
             &Header::default(),
             &self,
